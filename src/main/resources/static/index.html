@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATTENDIFY &mdash; Smart Attendance Management System</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              navy: '#0B192C',
+              dark: '#1E3E62',
+              primary: '#00ADB5',
+              accent: '#06B6D4',
+              surface: '#F8FAFC',
+              card: '#FFFFFF',
+              border: '#E2E8F0',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #F8FAFC; }
+    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+    .badge-present { background-color: #DEF7EC; color: #03543F; border: 1px solid #BCF0DA; }
+    .badge-absent { background-color: #FDE8E8; color: #9B1C1C; border: 1px solid #FBD5D5; }
+    .badge-late { background-color: #FEF08A; color: #713F12; border: 1px solid #FDE047; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    @media print {
+      body * { visibility: hidden; }
+      #printable-area, #printable-area * { visibility: visible; }
+      #printable-area { position: absolute; left: 0; top: 0; width: 100%; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col bg-slate-50">
+
+  <!-- ================= TOP DEMO QUICK-BAR ================= -->
+  <div id="demo-quick-bar" class="bg-slate-900 text-slate-300 py-2 px-4 border-b border-slate-800 text-xs flex flex-wrap items-center justify-between gap-2 shadow-inner">
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-400 font-semibold border border-cyan-800">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span> QUICK ROLE SWITCHER
+      </span>
+      <span class="text-slate-400 hidden sm:inline">1-Click instant test accounts:</span>
+    </div>
+    <div class="flex flex-wrap items-center gap-2">
+      <button onclick="demoLogin('admin')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 font-medium transition flex items-center gap-1 border border-slate-700">
+        👑 Admin (Robert Vance)
+      </button>
+      <button onclick="demoLogin('teacher')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-teal-300 font-medium transition flex items-center gap-1 border border-slate-700">
+        👩‍🏫 Teacher (Sarah Jenkins)
+      </button>
+      <button onclick="demoLogin('parent')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-purple-300 font-medium transition flex items-center gap-1 border border-slate-700">
+        👨‍👩‍👧 Parent (Rajesh Sharma)
+      </button>
+      <button onclick="demoLogin('student')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-blue-300 font-medium transition flex items-center gap-1 border border-slate-700">
+        🎓 Student (Aarav Sharma)
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= MAIN HEADER ================= -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-cyan-600/20">
+          <i data-lucide="check-check" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-extrabold text-xl tracking-tight text-slate-900">ATTEND<span class="text-cyan-600">IFY</span></span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800 uppercase tracking-wider">v1.0 Java</span>
+          </div>
+          <p class="text-[11px] text-slate-500 font-medium hidden sm:block">Smart Attendance Management Platform</p>
+        </div>
+      </div>
+
+      <!-- User Info & Controls -->
+      <div class="flex items-center gap-3">
+        <!-- Notification Bell (authenticated) -->
+        <div id="notif-wrapper" class="relative hidden">
+          <button id="notif-btn" onclick="toggleNotifDropdown()" class="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 relative transition">
+            <i data-lucide="bell" class="w-5 h-5"></i>
+            <span id="notif-badge" class="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white hidden"></span>
+          </button>
+          <!-- Notification Dropdown -->
+          <div id="notif-dropdown" class="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 hidden z-50 animate-in fade-in slide-in-from-top-2">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <i data-lucide="bell-ring" class="w-4 h-4 text-cyan-600"></i>
+                <h4 class="font-bold text-slate-900 text-sm">Notifications & SMS Alerts</h4>
+              </div>
+              <span id="notif-count-text" class="text-xs text-slate-500">0 unread</span>
+            </div>
+            <div id="notif-list" class="max-h-72 overflow-y-auto divide-y divide-slate-100 custom-scrollbar py-2 text-xs">
+              <p class="text-center py-6 text-slate-400">No notifications yet</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Auth Status Pill / Buttons -->
+        <div id="auth-header-unauthenticated" class="flex items-center gap-2">
+          <button onclick="showAuthModal('login')" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition">
+            Sign In
+          </button>
+          <button onclick="showAuthModal('register-student')" class="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 shadow-md shadow-cyan-600/20 transition">
+            Register
+          </button>
+        </div>
+
+        <div id="auth-header-authenticated" class="hidden flex items-center gap-3">
+          <div class="flex items-center gap-2.5 pl-2 border-l border-slate-200">
+            <div class="w-9 h-9 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-sm shadow-sm" id="user-avatar-initials">
+              U
+            </div>
+            <div class="text-left hidden md:block">
+              <div class="font-bold text-xs text-slate-900 leading-tight" id="user-display-name">User Name</div>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span class="inline-block px-1.5 py-0.2 rounded text-[10px] font-bold uppercase tracking-wider" id="user-role-badge">STUDENT</span>
+                <span class="text-[10px] text-slate-400" id="user-extra-info"></span>
+              </div>
+            </div>
+          </div>
+          <button onclick="logout()" title="Logout" class="p-2 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition">
+            <i data-lucide="log-out" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= GLOBAL TOAST / ALERTS ================= -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 hidden transition-all duration-300 transform translate-y-2 max-w-md">
+    <div id="toast-inner" class="px-4 py-3 rounded-xl shadow-lg border text-sm font-medium flex items-center gap-2.5 bg-white border-slate-200 text-slate-800">
+      <i id="toast-icon" data-lucide="check-circle" class="w-5 h-5 text-emerald-600"></i>
+      <span id="toast-message">Notification message</span>
+    </div>
+  </div>
+
+  <!-- ================= MAIN CONTAINER ================= -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ================= VIEW 1: GUEST HERO / AUTH MODAL ================= -->
+    <div id="view-guest" class="py-8">
+      <div class="text-center max-w-3xl mx-auto mb-10">
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-800 text-xs font-semibold uppercase tracking-wider mb-4">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> End-to-End Attendance & Parent Notification System
+        </span>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-slate-950 tracking-tight leading-tight">
+          Reliable Digital Attendance, <br/><span class="bg-gradient-to-r from-cyan-600 to-teal-600 bg-clip-text text-transparent">Instant Parent Peace of Mind.</span>
+        </h1>
+        <p class="mt-4 text-base sm:text-lg text-slate-600">
+          Eliminate manual registers. Empower teachers with fast roster marking, prevent duplicate entries, enforce institution attendance rules, and notify parents automatically via in-app alerts and SMS.
+        </p>
+      </div>
+
+      <!-- Auth Form Card with Tabs -->
+      <div class="max-w-xl mx-auto bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden">
+        <!-- Tabs -->
+        <div class="flex border-b border-slate-200 bg-slate-50/70 p-1.5 gap-1 text-xs font-semibold">
+          <button onclick="switchAuthTab('login')" id="tab-btn-login" class="flex-1 py-2.5 rounded-xl transition text-center bg-white text-slate-900 shadow-sm">
+            Sign In
+          </button>
+          <button onclick="switchAuthTab('register-student')" id="tab-btn-register-student" class="flex-1 py-2.5 rounded-xl transition text-center text-slate-600 hover:text-slate-900">
+            Student Reg.
+          </button>
+          <button onclick="switchAuthTab('register-parent')" id="tab-btn-register-parent" class="flex-1 py-2.5 rounded-xl transition text-center text-slate-600 hover:text-slate-900">
+            Parent Reg.
+          </button>
+          <button onclick="switchAuthTab('register-teacher')" id="tab-btn-register-teacher" class="flex-1 py-2.5 rounded-xl transition text-center text-slate-600 hover:text-slate-900">
+            Teacher Reg.
+          </button>
+        </div>
+
+        <div class="p-6 sm:p-8">
+          <!-- 1. LOGIN FORM -->
+          <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Email or Phone Number</label>
+              <div class="relative">
+                <i data-lucide="user" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
+                <input type="text" id="login-identifier" required placeholder="admin@attendify.edu or 9876543210"
+                       class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-sm">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Password</label>
+              <div class="relative">
+                <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></i>
+                <input type="password" id="login-password" required placeholder="••••••••"
+                       class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-sm">
+                <button type="button" onclick="togglePasswordVisibility('login-password')" class="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-600">
+                  <i data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1">Passwords are verified securely every login.</p>
+            </div>
+            <button type="submit" id="btn-login-submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 text-white font-bold text-sm shadow-md hover:from-black hover:to-slate-900 transition flex items-center justify-center gap-2">
+              <i data-lucide="log-in" class="w-4 h-4"></i> Sign In to Attendify
+            </button>
+          </form>
+
+          <!-- 2. STUDENT REGISTRATION FORM (Dual OTP required: Student Phone & Parent Phone) -->
+          <form id="form-register-student" onsubmit="handleStudentRegister(event)" class="space-y-4 hidden">
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-900 flex items-start gap-2">
+              <i data-lucide="info" class="w-4 h-4 text-blue-600 mt-0.5 shrink-0"></i>
+              <span>Per requirements, student registration requires verifying <strong>both Student Phone</strong> and <strong>Parent Phone</strong> via OTP, plus setting a secure password.</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                <input type="text" id="reg-student-name" required placeholder="Aarav Sharma" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Email</label>
+                <input type="email" id="reg-student-email" required placeholder="aarav@school.edu" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Admission Number</label>
+                <input type="text" id="reg-student-adm" required placeholder="ADM-2026-105" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Class</label>
+                <select id="reg-student-class" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white">
+                  <option value="">Select class...</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Student Phone & OTP -->
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <label class="block text-xs font-bold text-slate-800">1. Student Mobile Number</label>
+              <div class="flex gap-2">
+                <input type="text" id="reg-student-phone" required placeholder="9876543220" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs">
+                <button type="button" onclick="sendOtpFor('reg-student-phone', 'STUDENT_PHONE_VERIFICATION', 'student-otp-status')" class="px-3 py-2 rounded-xl bg-slate-800 text-white text-xs font-semibold hover:bg-slate-700 shrink-0">
+                  Send OTP
+                </button>
+              </div>
+              <div id="student-otp-status" class="text-[11px] font-medium hidden"></div>
+              <div class="flex gap-2">
+                <input type="text" id="reg-student-otp" placeholder="Enter 6-digit OTP" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs tracking-widest text-center font-mono font-bold">
+                <button type="button" onclick="verifyOtpFor('reg-student-phone', 'reg-student-otp', 'STUDENT_PHONE_VERIFICATION', 'student-otp-verified-badge')" class="px-3 py-2 rounded-xl bg-cyan-600 text-white text-xs font-semibold hover:bg-cyan-700 shrink-0">
+                  Verify
+                </button>
+              </div>
+              <div id="student-otp-verified-badge" class="hidden text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Student Mobile Verified!
+              </div>
+            </div>
+
+            <!-- Parent Phone & OTP -->
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <label class="block text-xs font-bold text-slate-800">2. Parent / Guardian Mobile Number</label>
+              <div class="flex gap-2">
+                <input type="text" id="reg-student-parent-phone" required placeholder="9876543230" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs">
+                <button type="button" onclick="sendOtpFor('reg-student-parent-phone', 'STUDENT_PARENT_PHONE_VERIFICATION', 'parent-otp-status')" class="px-3 py-2 rounded-xl bg-slate-800 text-white text-xs font-semibold hover:bg-slate-700 shrink-0">
+                  Send OTP
+                </button>
+              </div>
+              <div id="parent-otp-status" class="text-[11px] font-medium hidden"></div>
+              <div class="flex gap-2">
+                <input type="text" id="reg-student-parent-otp" placeholder="Enter 6-digit OTP" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs tracking-widest text-center font-mono font-bold">
+                <button type="button" onclick="verifyOtpFor('reg-student-parent-phone', 'reg-student-parent-otp', 'STUDENT_PARENT_PHONE_VERIFICATION', 'parent-otp-verified-badge')" class="px-3 py-2 rounded-xl bg-cyan-600 text-white text-xs font-semibold hover:bg-cyan-700 shrink-0">
+                  Verify
+                </button>
+              </div>
+              <div id="parent-otp-verified-badge" class="hidden text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Parent Mobile Verified!
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Set Password (Used for login)</label>
+              <input type="password" id="reg-student-password" required minlength="6" placeholder="At least 6 characters" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+            </div>
+
+            <button type="submit" class="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-sm shadow transition">
+              Complete Student Registration
+            </button>
+          </form>
+
+          <!-- 3. PARENT REGISTRATION FORM -->
+          <form id="form-register-parent" onsubmit="handleParentRegister(event)" class="space-y-4 hidden">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                <input type="text" id="reg-parent-name" required placeholder="Rajesh Sharma" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Email</label>
+                <input type="email" id="reg-parent-email" required placeholder="parent@gmail.com" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+              </div>
+            </div>
+
+            <!-- Parent Mobile & OTP -->
+            <div class="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+              <label class="block text-xs font-bold text-slate-800">Mobile Number (Receives Attendance SMS)</label>
+              <div class="flex gap-2">
+                <input type="text" id="reg-parent-phone" required placeholder="9876543230" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs">
+                <button type="button" onclick="sendOtpFor('reg-parent-phone', 'PARENT_PHONE_VERIFICATION', 'parent-reg-otp-status')" class="px-3 py-2 rounded-xl bg-slate-800 text-white text-xs font-semibold hover:bg-slate-700 shrink-0">
+                  Send OTP
+                </button>
+              </div>
+              <div id="parent-reg-otp-status" class="text-[11px] font-medium hidden"></div>
+              <div class="flex gap-2">
+                <input type="text" id="reg-parent-otp" placeholder="Enter 6-digit OTP" class="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs tracking-widest text-center font-mono font-bold">
+                <button type="button" onclick="verifyOtpFor('reg-parent-phone', 'reg-parent-otp', 'PARENT_PHONE_VERIFICATION', 'parent-reg-otp-verified-badge')" class="px-3 py-2 rounded-xl bg-cyan-600 text-white text-xs font-semibold hover:bg-cyan-700 shrink-0">
+                  Verify
+                </button>
+              </div>
+              <div id="parent-reg-otp-verified-badge" class="hidden text-[11px] text-emerald-700 font-bold flex items-center gap-1">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Mobile Verified!
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Relationship</label>
+                <select id="reg-parent-relationship" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white">
+                  <option value="Father">Father</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Guardian">Guardian</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Child's Admission No. (Optional)</label>
+                <input type="text" id="reg-parent-child-adm" placeholder="e.g. ADM-2026-001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Set Password (Used for login)</label>
+              <input type="password" id="reg-parent-password" required minlength="6" placeholder="At least 6 characters" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+            </div>
+
+            <button type="submit" class="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold text-sm shadow transition">
+              Complete Parent Registration
+            </button>
+          </form>
+
+          <!-- 4. TEACHER REGISTRATION FORM -->
+          <form id="form-register-teacher" onsubmit="handleTeacherRegister(event)" class="space-y-4 hidden">
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 flex items-start gap-2">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600 mt-0.5 shrink-0"></i>
+              <span>Teacher accounts require administrator verification and approval before logging in.</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Full Name</label>
+                <input type="text" id="reg-teacher-name" required placeholder="Prof. John Doe" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Email</label>
+                <input type="email" id="reg-teacher-email" required placeholder="j.doe@school.edu" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Employee ID</label>
+                <input type="text" id="reg-teacher-empid" required placeholder="EMP-T-202" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Department</label>
+                <input type="text" id="reg-teacher-dept" required placeholder="Mathematics" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Mobile Number</label>
+              <input type="text" id="reg-teacher-phone" required placeholder="9876543299" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Set Password (Used for login)</label>
+              <input type="password" id="reg-teacher-password" required minlength="6" placeholder="At least 6 characters" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs">
+            </div>
+
+            <button type="submit" class="w-full py-3 rounded-xl bg-slate-900 hover:bg-black text-white font-bold text-sm shadow transition">
+              Submit Teacher Registration for Approval
+            </button>
+          </form>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= VIEW 2: STUDENT DASHBOARD ================= -->
+    <div id="view-student" class="hidden space-y-6">
+      <!-- Profile Header -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-cyan-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <span class="px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 text-xs font-semibold uppercase tracking-wider">
+            Student Portal
+          </span>
+          <h2 class="text-2xl sm:text-3xl font-extrabold mt-2" id="std-dash-name">Aarav Sharma</h2>
+          <div class="flex flex-wrap gap-4 mt-2 text-xs text-slate-300 font-medium">
+            <span>Admission No: <strong class="text-white" id="std-dash-adm">ADM-2026-001</strong></span>
+            <span>•</span>
+            <span>Class: <strong class="text-white" id="std-dash-class">Grade 10 (A)</strong></span>
+            <span>•</span>
+            <span>Roll No: <strong class="text-white" id="std-dash-roll">101</strong></span>
+          </div>
+        </div>
+
+        <!-- Overall Score Ring -->
+        <div class="flex items-center gap-4 bg-white/10 backdrop-blur-md px-5 py-4 rounded-2xl border border-white/10">
+          <div class="text-right">
+            <div class="text-xs text-slate-300 font-medium">Overall Attendance</div>
+            <div class="text-3xl font-black text-white" id="std-dash-pct">92.5%</div>
+            <div id="std-dash-threshold-badge" class="text-[10px] font-bold text-emerald-400">✓ Above Threshold (75%)</div>
+          </div>
+          <div class="w-14 h-14 rounded-full border-4 border-cyan-400 flex items-center justify-center font-bold text-sm bg-cyan-950/50">
+            <i data-lucide="award" class="w-6 h-6 text-cyan-400"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Warning if Low Attendance -->
+      <div id="std-low-attendance-alert" class="hidden bg-red-50 border-l-4 border-red-500 p-4 rounded-xl text-red-900 text-xs flex items-center gap-3">
+        <i data-lucide="alert-triangle" class="w-5 h-5 text-red-600 shrink-0"></i>
+        <div>
+          <strong>Low Attendance Alert:</strong> Your current attendance percentage is below the mandatory 75% institutional requirement. Please attend all scheduled periods to avoid academic debarment.
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs text-slate-500 font-bold uppercase">Total Periods</span>
+          <div class="text-2xl font-black text-slate-900 mt-1" id="std-kpi-total">0</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs text-emerald-600 font-bold uppercase">Periods Attended</span>
+          <div class="text-2xl font-black text-emerald-600 mt-1" id="std-kpi-attended">0</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs text-red-600 font-bold uppercase">Absences</span>
+          <div class="text-2xl font-black text-red-600 mt-1" id="std-kpi-absences">0</div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-xs text-amber-600 font-bold uppercase">Late Marks</span>
+          <div class="text-2xl font-black text-amber-600 mt-1" id="std-kpi-lates">0</div>
+        </div>
+      </div>
+
+      <!-- Subject Breakdown & Chart -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Subject Cards -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+          <h3 class="font-bold text-slate-900 text-base mb-4 flex items-center gap-2">
+            <i data-lucide="book-open" class="w-5 h-5 text-cyan-600"></i> Subject-Wise Attendance Breakdown
+          </h3>
+          <div id="std-subject-list" class="space-y-4">
+            <!-- Dynamic Subjects -->
+          </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base mb-2 flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-5 h-5 text-teal-600"></i> Subject Chart
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">Attended vs Total Periods</p>
+          </div>
+          <div class="h-64 relative">
+            <canvas id="std-subject-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Attendance History Table -->
+      <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+            <i data-lucide="calendar" class="w-5 h-5 text-cyan-600"></i> Recent Attendance Records
+          </h3>
+          <span class="text-xs text-slate-400">Digital immutable ledger</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4">Date</th>
+                <th class="py-3 px-4">Period</th>
+                <th class="py-3 px-4">Subject</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4">Teacher</th>
+                <th class="py-3 px-4">Remarks</th>
+              </tr>
+            </thead>
+            <tbody id="std-history-tbody" class="divide-y divide-slate-100">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= VIEW 3: PARENT DASHBOARD ================= -->
+    <div id="view-parent" class="hidden space-y-6">
+      <!-- Child Selector & Actions Header -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-bold text-purple-700 uppercase tracking-wider">Parent / Guardian Portal</span>
+          <h2 class="text-2xl font-black text-slate-900 mt-1" id="parent-greeting">Welcome, Parent</h2>
+          <p class="text-xs text-slate-500">Real-time attendance notifications are dispatched automatically whenever marked by teachers.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Child Select Dropdown -->
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-700">Child:</label>
+            <select id="parent-child-select" onchange="onParentChildChange()" class="px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-slate-50 focus:outline-none focus:ring-2 focus:ring-purple-500">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          <button onclick="showLinkChildModal()" class="px-3.5 py-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 text-xs font-bold transition flex items-center gap-1.5">
+            <i data-lucide="user-plus" class="w-4 h-4"></i> Link Child
+          </button>
+          <button onclick="window.print()" class="px-3.5 py-2 rounded-xl bg-slate-900 text-white hover:bg-black text-xs font-bold transition flex items-center gap-1.5">
+            <i data-lucide="printer" class="w-4 h-4"></i> Print Report
+          </button>
+        </div>
+      </div>
+
+      <!-- Child Attendance Summary Cards -->
+      <div id="parent-child-details-container" class="space-y-6">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- ================= VIEW 4: TEACHER DASHBOARD & ATTENDANCE STUDIO ================= -->
+    <div id="view-teacher" class="hidden space-y-6">
+      <!-- Teacher Header -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-bold text-teal-700 uppercase tracking-wider">Teacher Attendance Studio</span>
+          <h2 class="text-2xl font-black text-slate-900 mt-1" id="teacher-dash-name">Prof. Sarah Jenkins</h2>
+          <div class="flex flex-wrap gap-3 mt-1 text-xs text-slate-500">
+            <span>Employee ID: <strong class="text-slate-800" id="teacher-dash-empid">EMP-T-101</strong></span>
+            <span>•</span>
+            <span>Department: <strong class="text-slate-800" id="teacher-dash-dept">Mathematics</strong></span>
+          </div>
+        </div>
+
+        <button onclick="scrollToAttendanceStudio()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white font-bold text-xs shadow-md transition flex items-center gap-2">
+          <i data-lucide="clipboard-check" class="w-4 h-4"></i> Take New Attendance
+        </button>
+      </div>
+
+      <!-- Today's Timetable Schedule -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <h3 class="font-bold text-slate-900 text-base mb-4 flex items-center gap-2">
+          <i data-lucide="clock" class="w-5 h-5 text-cyan-600"></i> Today's Schedule & Quick Attendance
+        </h3>
+        <div id="teacher-timetable-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Timetable slots dynamically added -->
+        </div>
+      </div>
+
+      <!-- ================= ATTENDANCE MARKING STUDIO ================= -->
+      <div id="attendance-marking-studio" class="bg-white rounded-3xl border-2 border-cyan-500/30 shadow-lg p-6 sm:p-8 space-y-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div>
+            <span class="px-2.5 py-1 rounded-full bg-cyan-100 text-cyan-800 text-[10px] font-bold uppercase tracking-wider">
+              Live Session
+            </span>
+            <h3 class="text-xl font-black text-slate-900 mt-1">Record Class Attendance</h3>
+            <p class="text-xs text-slate-500">Mark students Present, Absent, or Late. Backend prevents duplicates and immediately triggers parent notifications upon saving.</p>
+          </div>
+
+          <!-- Bulk Mark Controls -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button type="button" onclick="bulkMark('PRESENT')" class="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold hover:bg-emerald-100 transition flex items-center gap-1">
+              <i data-lucide="check" class="w-3.5 h-3.5"></i> Mark All Present
+            </button>
+            <button type="button" onclick="bulkMark('ABSENT')" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border border-red-200 text-xs font-bold hover:bg-red-100 transition flex items-center gap-1">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i> Mark All Absent
+            </button>
+            <button type="button" onclick="bulkMark('LATE')" class="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold hover:bg-amber-100 transition flex items-center gap-1">
+              <i data-lucide="clock" class="w-3.5 h-3.5"></i> Mark All Late
+            </button>
+          </div>
+        </div>
+
+        <!-- Session Selection Bar -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Class & Division</label>
+            <select id="mark-class-select" onchange="onMarkClassChange()" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium">
+              <!-- Dynamically populated from assigned classes -->
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Subject</label>
+            <select id="mark-subject-select" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Date</label>
+            <input type="date" id="mark-date" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-700 mb-1">Period</label>
+            <select id="mark-period" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium">
+              <option value="1">Period 1 (09:00 - 09:45)</option>
+              <option value="2">Period 2 (09:45 - 10:30)</option>
+              <option value="3">Period 3 (10:45 - 11:30)</option>
+              <option value="4">Period 4 (11:30 - 12:15)</option>
+              <option value="5">Period 5 (01:00 - 01:45)</option>
+              <option value="6">Period 6 (01:45 - 02:30)</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button type="button" onclick="loadRoster()" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold transition flex items-center justify-center gap-1.5">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Load Roster
+            </button>
+          </div>
+        </div>
+
+        <!-- Student Roster Table -->
+        <div class="overflow-x-auto rounded-2xl border border-slate-200">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4 w-16">Roll</th>
+                <th class="py-3 px-4 w-32">Admission No</th>
+                <th class="py-3 px-4">Student Name</th>
+                <th class="py-3 px-4 w-40">Parent Contact</th>
+                <th class="py-3 px-4 w-64 text-center">Attendance Status</th>
+                <th class="py-3 px-4">Remarks</th>
+              </tr>
+            </thead>
+            <tbody id="roster-tbody" class="divide-y divide-slate-100">
+              <tr>
+                <td colspan="6" class="text-center py-8 text-slate-400">Click "Load Roster" to view enrolled students.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Session Summary & Submit Footer -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-slate-100">
+          <div class="flex items-center gap-4 text-xs font-bold">
+            <span class="text-slate-600">Total: <span id="roster-total-count" class="text-slate-900 font-black">0</span></span>
+            <span class="text-emerald-700">Present: <span id="roster-present-count" class="font-black">0</span></span>
+            <span class="text-red-700">Absent: <span id="roster-absent-count" class="font-black">0</span></span>
+            <span class="text-amber-700">Late: <span id="roster-late-count" class="font-black">0</span></span>
+          </div>
+
+          <div class="flex items-center gap-3 w-full sm:w-auto">
+            <input type="text" id="mark-notes" placeholder="Optional session notes (e.g. Chapter 4 Quiz)" class="flex-1 sm:w-64 px-3 py-2 rounded-xl border border-slate-300 text-xs">
+            <button type="button" onclick="submitAttendance()" id="btn-submit-attendance" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white font-bold text-xs shadow-md shadow-cyan-600/20 transition flex items-center gap-2">
+              <i data-lucide="send" class="w-4 h-4"></i> Submit Attendance
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Sessions & Corrections Table -->
+      <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 class="font-bold text-slate-900 text-base">Submitted Sessions & Attendance Corrections</h3>
+            <p class="text-xs text-slate-500">Records can be corrected within the permitted 48-hour window with mandatory reason and audit trail.</p>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4">Date</th>
+                <th class="py-3 px-4">Class</th>
+                <th class="py-3 px-4">Subject</th>
+                <th class="py-3 px-4">Period</th>
+                <th class="py-3 px-4 text-center">Summary</th>
+                <th class="py-3 px-4">Attendance %</th>
+                <th class="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="teacher-sessions-tbody" class="divide-y divide-slate-100">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= VIEW 5: ADMINISTRATOR COMMAND CENTER ================= -->
+    <div id="view-admin" class="hidden space-y-6">
+      <!-- Admin KPI Counters -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-[10px] text-slate-500 font-bold uppercase">Students</span>
+          <div class="text-2xl font-black text-slate-900 mt-1" id="adm-kpi-students">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-[10px] text-slate-500 font-bold uppercase">Teachers</span>
+          <div class="text-2xl font-black text-slate-900 mt-1" id="adm-kpi-teachers">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-[10px] text-slate-500 font-bold uppercase">Classes</span>
+          <div class="text-2xl font-black text-slate-900 mt-1" id="adm-kpi-classes">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-[10px] text-cyan-600 font-bold uppercase">Sessions Today</span>
+          <div class="text-2xl font-black text-cyan-600 mt-1" id="adm-kpi-sessions-today">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-[10px] text-emerald-600 font-bold uppercase">Overall %</span>
+          <div class="text-2xl font-black text-emerald-600 mt-1" id="adm-kpi-overall-pct">0%</div>
+        </div>
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+          <span class="text-[10px] text-red-600 font-bold uppercase">Low Attendance</span>
+          <div class="text-2xl font-black text-red-600 mt-1" id="adm-kpi-low-count">0</div>
+        </div>
+      </div>
+
+      <!-- Admin Navigation Tabs -->
+      <div class="flex flex-wrap border-b border-slate-200 bg-white rounded-2xl p-2 gap-1 text-xs font-bold shadow-sm">
+        <button onclick="switchAdminTab('pending')" id="adm-tab-pending" class="px-4 py-2 rounded-xl bg-slate-900 text-white">
+          Approvals & Links
+        </button>
+        <button onclick="switchAdminTab('classes')" id="adm-tab-classes" class="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900">
+          Classes & Subjects
+        </button>
+        <button onclick="switchAdminTab('assign')" id="adm-tab-assign" class="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900">
+          Assign Teachers
+        </button>
+        <button onclick="switchAdminTab('reports')" id="adm-tab-reports" class="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900">
+          Reports & CSV Export
+        </button>
+        <button onclick="switchAdminTab('rules')" id="adm-tab-rules" class="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900">
+          Attendance Rules
+        </button>
+        <button onclick="switchAdminTab('audit')" id="adm-tab-audit" class="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900">
+          Audit Trail
+        </button>
+        <button onclick="switchAdminTab('delivery')" id="adm-tab-delivery" class="px-4 py-2 rounded-xl text-slate-600 hover:text-slate-900">
+          SMS & Delivery Logs
+        </button>
+      </div>
+
+      <!-- Admin Tab Content 1: Approvals -->
+      <div id="adm-panel-pending" class="space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Pending Teachers -->
+          <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+            <h3 class="font-bold text-slate-900 text-base mb-3 flex items-center gap-2">
+              <i data-lucide="user-check" class="w-5 h-5 text-amber-600"></i> Pending Teacher Approvals
+            </h3>
+            <div id="pending-teachers-list" class="divide-y divide-slate-100 text-xs">
+              <p class="text-slate-400 py-4 text-center">No pending teacher applications.</p>
+            </div>
+          </div>
+
+          <!-- Pending Parent-Child Links -->
+          <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+            <h3 class="font-bold text-slate-900 text-base mb-3 flex items-center gap-2">
+              <i data-lucide="link-2" class="w-5 h-5 text-purple-600"></i> Parent-Child Link Requests
+            </h3>
+            <div id="pending-links-list" class="divide-y divide-slate-100 text-xs">
+              <p class="text-slate-400 py-4 text-center">No pending parent link requests.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Tab Content 2: Classes & Subjects -->
+      <div id="adm-panel-classes" class="hidden space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Create Class Card -->
+          <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+              <i data-lucide="plus-circle" class="w-5 h-5 text-cyan-600"></i> Add New Class
+            </h3>
+            <form onsubmit="handleCreateClass(event)" class="space-y-3 text-xs">
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Class Name</label>
+                <input type="text" id="new-class-name" required placeholder="Grade 11" class="w-full px-3 py-2 rounded-xl border border-slate-300">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Division</label>
+                  <input type="text" id="new-class-div" required placeholder="A" class="w-full px-3 py-2 rounded-xl border border-slate-300">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Room No</label>
+                  <input type="text" id="new-class-room" placeholder="Room 301" class="w-full px-3 py-2 rounded-xl border border-slate-300">
+                </div>
+              </div>
+              <button type="submit" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold transition">
+                Create Class
+              </button>
+            </form>
+            <div class="pt-4 border-t border-slate-100">
+              <h4 class="font-bold text-slate-800 text-xs mb-2">Existing Classes:</h4>
+              <div id="adm-classes-list" class="space-y-1.5 text-xs"></div>
+            </div>
+          </div>
+
+          <!-- Create Subject Card -->
+          <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
+              <i data-lucide="book" class="w-5 h-5 text-teal-600"></i> Add New Subject
+            </h3>
+            <form onsubmit="handleCreateSubject(event)" class="space-y-3 text-xs">
+              <div>
+                <label class="block font-bold text-slate-700 mb-1">Subject Name</label>
+                <input type="text" id="new-subj-name" required placeholder="Chemistry" class="w-full px-3 py-2 rounded-xl border border-slate-300">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Subject Code</label>
+                  <input type="text" id="new-subj-code" required placeholder="CHEM101" class="w-full px-3 py-2 rounded-xl border border-slate-300">
+                </div>
+                <div>
+                  <label class="block font-bold text-slate-700 mb-1">Description</label>
+                  <input type="text" id="new-subj-desc" placeholder="Organic & Inorganic" class="w-full px-3 py-2 rounded-xl border border-slate-300">
+                </div>
+              </div>
+              <button type="submit" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold transition">
+                Create Subject
+              </button>
+            </form>
+            <div class="pt-4 border-t border-slate-100">
+              <h4 class="font-bold text-slate-800 text-xs mb-2">Existing Subjects:</h4>
+              <div id="adm-subjects-list" class="space-y-1.5 text-xs"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Tab Content 3: Teacher Assignment -->
+      <div id="adm-panel-assign" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm max-w-xl">
+          <h3 class="font-bold text-slate-900 text-base mb-4 flex items-center gap-2">
+            <i data-lucide="user-check" class="w-5 h-5 text-cyan-600"></i> Assign Teacher to Class & Subject
+          </h3>
+          <form onsubmit="handleAssignTeacher(event)" class="space-y-4 text-xs">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Select Teacher</label>
+              <select id="assign-teacher-select" required class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium"></select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Select Class</label>
+              <select id="assign-class-select" required class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium"></select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Select Subject</label>
+              <select id="assign-subject-select" required class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium"></select>
+            </div>
+            <button type="submit" class="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-bold transition">
+              Save Teacher Assignment
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Admin Tab Content 4: Reports & CSV Export -->
+      <div id="adm-panel-reports" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Institution & Class Attendance Reports</h3>
+              <p class="text-xs text-slate-500">Filter attendance records, calculate totals, view low attendance, or export complete CSV files.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="downloadReportCsv()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow">
+                <i data-lucide="download" class="w-4 h-4"></i> Download CSV Export
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Class</label>
+              <select id="report-class-select" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium"></select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Start Date</label>
+              <input type="date" id="report-start-date" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white">
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">End Date</label>
+              <input type="date" id="report-end-date" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white">
+            </div>
+            <div class="flex items-end">
+              <button type="button" onclick="loadClassReport()" class="w-full py-2 rounded-xl bg-slate-900 hover:bg-black text-white font-bold transition flex items-center justify-center gap-1.5">
+                <i data-lucide="search" class="w-4 h-4"></i> Generate Report
+              </button>
+            </div>
+          </div>
+
+          <div id="report-result-container" class="space-y-4">
+            <!-- Dynamic report table -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Tab Content 5: Attendance Rules -->
+      <div id="adm-panel-rules" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm max-w-xl">
+          <h3 class="font-bold text-slate-900 text-base mb-4 flex items-center gap-2">
+            <i data-lucide="sliders" class="w-5 h-5 text-cyan-600"></i> Configure Institution Attendance Rules
+          </h3>
+          <form onsubmit="handleSaveRules(event)" class="space-y-4 text-xs">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Minimum Attendance Threshold (%)</label>
+              <input type="number" id="rule-min-pct" step="0.5" required class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+              <p class="text-[11px] text-slate-500 mt-0.5">Students below this percentage are flagged as Low Attendance.</p>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Late Attendance Multiplier</label>
+              <select id="rule-late-mult" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white font-medium">
+                <option value="1.0">1.0 (Late counts as full Present)</option>
+                <option value="0.5">0.5 (Late counts as half Present)</option>
+                <option value="0.0">0.0 (Late counts as Absent)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Teacher Correction Window (Hours)</label>
+              <input type="number" id="rule-window-hours" required class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold">
+              <p class="text-[11px] text-slate-500 mt-0.5">Permitted time for teachers to adjust records after submission.</p>
+            </div>
+            <div class="space-y-2 pt-2 border-t border-slate-100">
+              <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                <input type="checkbox" id="rule-auto-notify" class="w-4 h-4 rounded text-cyan-600">
+                <span>Automatically create in-app notifications for parents</span>
+              </label>
+              <label class="flex items-center gap-2 cursor-pointer font-bold text-slate-800">
+                <input type="checkbox" id="rule-auto-sms" class="w-4 h-4 rounded text-cyan-600">
+                <span>Dispatch real-time SMS to parent mobile numbers</span>
+              </label>
+            </div>
+            <button type="submit" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-black text-white font-bold transition">
+              Save Rules
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Admin Tab Content 6: Audit Trail -->
+      <div id="adm-panel-audit" class="hidden space-y-6">
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Administrative & Correction Audit Trail</h3>
+              <p class="text-xs text-slate-500">Immutable records of attendance corrections, user approvals, and configuration changes.</p>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-4">Timestamp</th>
+                  <th class="py-3 px-4">Performed By</th>
+                  <th class="py-3 px-4">Action</th>
+                  <th class="py-3 px-4">Entity</th>
+                  <th class="py-3 px-4">Details</th>
+                </tr>
+              </thead>
+              <tbody id="adm-audit-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Tab Content 7: SMS Delivery Logs -->
+      <div id="adm-panel-delivery" class="hidden space-y-6">
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">Notification & SMS Delivery Logs</h3>
+              <p class="text-xs text-slate-500">Tracks carrier delivery status, simulation logs, and provider responses.</p>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200">
+                <tr>
+                  <th class="py-3 px-4">Attempted</th>
+                  <th class="py-3 px-4">Recipient Phone</th>
+                  <th class="py-3 px-4">Channel</th>
+                  <th class="py-3 px-4">Status</th>
+                  <th class="py-3 px-4">Notification Message</th>
+                  <th class="py-3 px-4">Provider Response</th>
+                </tr>
+              </thead>
+              <tbody id="adm-delivery-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ================= RECORD CORRECTION MODAL ================= -->
+  <div id="modal-correction" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h4 class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <i data-lucide="edit-3" class="w-5 h-5 text-amber-600"></i> Correct Attendance Record
+        </h4>
+        <button onclick="closeCorrectionModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleRecordCorrection(event)" class="space-y-4 text-xs">
+        <input type="hidden" id="correct-record-id">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Student</label>
+          <input type="text" id="correct-student-name" readonly class="w-full px-3 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600">
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">New Attendance Status</label>
+          <select id="correct-new-status" required class="w-full px-3 py-2 rounded-xl border border-slate-300 font-bold bg-white">
+            <option value="PRESENT">PRESENT (Attended)</option>
+            <option value="ABSENT">ABSENT (Not Attended)</option>
+            <option value="LATE">LATE (Tardy)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Mandatory Reason for Correction (Audit Logged)</label>
+          <textarea id="correct-reason" required rows="3" placeholder="e.g. Student had medical excuse slip verified by front office..." class="w-full px-3 py-2 rounded-xl border border-slate-300"></textarea>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 p-2.5 rounded-xl text-[11px] text-amber-900">
+          This change is permanently audited and parents will receive an updated notification.
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="closeCorrectionModal()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold transition">
+            Save Correction
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= LINK CHILD MODAL ================= -->
+  <div id="modal-link-child" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h4 class="font-bold text-slate-900 text-base flex items-center gap-2">
+          <i data-lucide="link" class="w-5 h-5 text-purple-600"></i> Link Another Child
+        </h4>
+        <button onclick="closeLinkChildModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form onsubmit="handleLinkChildSubmit(event)" class="space-y-4 text-xs">
+        <div>
+          <label class="block font-bold text-slate-700 mb-1">Student's Admission Number</label>
+          <input type="text" id="link-child-adm" required placeholder="e.g. ADM-2026-003" class="w-full px-3 py-2 rounded-xl border border-slate-300">
+          <p class="text-[11px] text-slate-500 mt-1">If the student profile has your verified parent mobile number, linking will be instant. Otherwise, it will require administrator approval.</p>
+        </div>
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="closeLinkChildModal()" class="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-semibold">
+            Cancel
+          </button>
+          <button type="submit" class="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold transition">
+            Link Child
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= APPLICATION SCRIPTS ================= -->
+  <script src="/js/app.js"></script>
+</body>
+</html>
